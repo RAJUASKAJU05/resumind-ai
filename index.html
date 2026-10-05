@@ -1,0 +1,90 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Resumind AI</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--ink:#0f1730;--mut:#5d6785;--line:#e3e6f0;--ac:#4f46e5;--ok:#13805a;--bad:#c2410c;--nav:#0f1730}
+@media(prefers-color-scheme:dark){:root{--bg:#0b1020;--card:#141b33;--ink:#eef0fa;--mut:#9aa3c4;--line:#252e4f;--ac:#8b86ff;--ok:#4ade9b;--bad:#fb923c}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.5 system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--nav);color:#fff;display:flex;align-items:center;gap:6px;padding:10px 20px;flex-wrap:wrap}
+header b{font-size:18px;margin-right:auto}header button{background:none;border:0;color:#cfd4ee;padding:8px 12px;border-radius:8px;cursor:pointer;font:inherit}
+header button:hover,header button.on{background:#ffffff1f;color:#fff}
+main{max-width:980px;margin:0 auto;padding:22px 16px}h1{font-size:24px;margin:0 0 14px}h2{font-size:17px;margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.stat{font-size:34px;font-weight:700}.mut{color:var(--mut);font-size:13px}
+button.p,a.p{background:var(--ac);color:#fff;border:0;padding:9px 16px;border-radius:8px;cursor:pointer;font:inherit}button.p:disabled{opacity:.5}
+button.s{background:none;border:1px solid var(--line);color:var(--ink);padding:6px 12px;border-radius:8px;cursor:pointer;font:inherit}
+input,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;margin-bottom:10px}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:40px;text-align:center;cursor:pointer}.drop.over{border-color:var(--ac)}
+.row{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.chip{display:inline-block;padding:2px 10px;border-radius:99px;background:var(--bg);border:1px solid var(--line);margin:2px;font-size:13px}
+.chip.g{color:var(--ok)}.chip.r{color:var(--bad)}.bar{height:8px;background:var(--line);border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ac)}
+.err{color:var(--bad);margin:6px 0}.pass{color:var(--ok)}.fail{color:var(--bad)}pre{white-space:pre-wrap;font:inherit;margin:0}
+.msg{padding:8px 12px;border-radius:10px;margin:6px 0;max-width:85%}.u{background:var(--ac);color:#fff;margin-left:auto}.a{background:var(--bg);border:1px solid var(--line)}
+</style></head><body>
+<header><b>Resumind AI</b><span id="nav"></span></header><main id="app" aria-live="polite"></main>
+<script>
+const $=s=>document.querySelector(s),app=$('#app');let ME=null;
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function api(p,o={}){const r=await fetch('/api'+p,{credentials:'same-origin',...o});if(r.status===204)return null;
+ const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(typeof d.detail==='string'?d.detail:'Please check your input and try again.');return d}
+const J=(m,b)=>({method:m,headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});
+function nav(){$('#nav').innerHTML=ME?['dashboard:Dashboard','upload:Upload','jobs:Job match','chat:Assistant'].map(x=>{const[k,l]=x.split(':');return`<button onclick="go('${k}')">${l}</button>`}).join('')+`<button onclick="logout()">Log out</button>`:''}
+function go(v,a){nav();({auth,dashboard,upload,jobs,chat,detail})[v](a)}
+async function logout(){await api('/auth/logout',{method:'POST'});ME=null;go('auth')}
+function auth(reg){app.innerHTML=`<div style="max-width:620px;margin:20px auto 0"><h1 style="font-size:34px;line-height:1.15">Your resume, checked the way a hiring system reads it.</h1>
+<p class="mut" style="font-size:16px">Upload a PDF, Word file or scanned image. Resumind AI shows your ATS compatibility, finds skill gaps against any job description, and helps you reword weak lines without inventing anything.</p></div><div class="card" style="max-width:420px;margin:30px auto"><h1>${reg?'Create account':'Log in'}</h1>
+<p class="mut">Upload your resume, see how it reads to ATS software, and compare it to a job. Your resumes are private to your account and you can delete them any time. AI suggestions should be reviewed before you use them.</p>
+<form id="f">${reg?'<label>Name<input name="name" required></label>':''}<label>Email<input name="email" type="email" required></label>
+<label>Password${reg?' (8+ characters)':''}<input name="password" type="password" minlength="${reg?8:1}" required></label><div class="err" id="e"></div>
+<button class="p">${reg?'Create account':'Log in'}</button> <button type="button" class="s" onclick="auth(${!reg})">${reg?'I have an account':'Create an account'}</button>${reg?'':' <button type="button" class="s" onclick="reset()">Forgot password</button>'}</form></div>`;
+$('#f').onsubmit=async e=>{e.preventDefault();try{ME=await api(reg?'/auth/register':'/auth/login',J('POST',Object.fromEntries(new FormData(e.target))));go('dashboard')}catch(x){$('#e').textContent=x.message}}}
+function reset(){app.innerHTML=`<div class="card" style="max-width:420px;margin:30px auto"><h1>Reset password</h1><p class="mut">Ask your administrator for the reset code.</p><form id="f"><input name="email" type="email" placeholder="Email" required><input name="new_password" type="password" minlength="8" placeholder="New password (8+ characters)" required><input name="code" placeholder="Reset code" required><div class="err" id="e"></div><button class="p">Reset password</button> <button type="button" class="s" onclick="auth()">Back</button></form></div>`;
+$('#f').onsubmit=async e=>{e.preventDefault();try{await api('/auth/reset-password',J('POST',Object.fromEntries(new FormData(e.target))));auth()}catch(x){$('#e').textContent=x.message}}}
+async function dashboard(){app.innerHTML='<p class="mut">Loading…</p>';const rs=await api('/resumes');const best=rs[0];
+app.innerHTML=`<h1>Hi ${esc(ME.name)}</h1><div class="grid"><div class="card"><div class="stat">${best?best.overall:'–'}</div><div class="mut">Latest overall score</div></div>
+<div class="card"><div class="stat">${best?best.ats:'–'}</div><div class="mut">Latest ATS score</div></div><div class="card"><div class="stat">${rs.length}</div><div class="mut">Resumes saved</div></div></div>
+<div class="card"><h2>Your resumes</h2>${rs.length?rs.map(r=>`<div class="row"><span><b>${esc(r.filename)}</b><br><span class="mut">${esc(r.created)}</span></span><span>Score ${r.overall} · ATS ${r.ats}</span>
+<span><button class="s" onclick="go('detail',${r.id})">View</button> <button class="s" onclick="ren(${r.id},'${esc(r.filename).replace(/'/g,'')}')">Rename</button> <button class="s" onclick="dup(${r.id})">Duplicate</button> <button class="s" onclick="cmp(${r.id})">Compare</button> <button class="s" onclick="del(${r.id})">Delete</button></span></div>`).join('')
+:'<p>No resumes yet. Upload your first resume and Resumind AI will analyze it.</p><button class="p" onclick="go(\'upload\')">Upload resume</button>'}</div><div class="card"><h2>Your data</h2><p class="mut">Resumes are stored only to analyze them for you. You can delete any resume above, or delete your whole account and everything in it.</p><button class="s" onclick="delAcc()">Delete my account</button></div>`}
+async function dup(id){await api(`/resumes/${id}/duplicate`,{method:'POST'});dashboard()}
+async function delAcc(){if(confirm('Permanently delete your account and all resumes?')){await api('/auth/account',{method:'DELETE'});ME=null;go('auth')}}
+async function cmp(id){const rs=await api('/resumes'),o=rs.filter(r=>r.id!=id);if(!o.length)return alert('Upload or duplicate another resume to compare.');
+ const pick=prompt('Compare with which resume number?\n'+o.map((r,i)=>`${i+1}. ${r.filename}`).join('\n'),'1');const b=o[(+pick||0)-1];if(!b)return;
+ const m=await api(`/resumes/${id}/compare/${b.id}`),ch=(a,c)=>a.map(x=>`<span class="chip ${c}">${esc(x)}</span>`).join('')||'<span class="mut">none</span>';
+ app.innerHTML=`<h1>Compare</h1><div class="grid"><div class="card"><h2>${esc(m.a.name)}</h2><div class="stat">${m.a.overall_score}</div><div class="mut">Overall · ATS ${m.a.ats_score}</div></div><div class="card"><h2>${esc(m.b.name)}</h2><div class="stat">${m.b.overall_score}</div><div class="mut">Overall · ATS ${m.b.ats_score}</div></div></div>
+ <div class="card"><h2>Only in first</h2>${ch(m.only_in_a,'g')}<h2>Only in second</h2>${ch(m.only_in_b,'g')}<h2>In both</h2>${ch(m.shared,'')}</div><button class="s" onclick="go('dashboard')">Back</button>`}
+async function ren(id,n){const v=prompt('New name',n);if(v){await api('/resumes/'+id,J('PATCH',{filename:v}));dashboard()}}
+async function del(id){if(confirm('Delete this resume and its analysis permanently?')){await api('/resumes/'+id,{method:'DELETE'});dashboard()}}
+function upload(){app.innerHTML=`<h1>Upload resume</h1><div class="card"><label class="drop" id="d" tabindex="0">Drop a PDF, DOCX, PNG or JPG here (scans are read with OCR), or click to browse. Max 5 MB.<input id="fi" type="file" accept=".pdf,.docx,.png,.jpg,.jpeg" hidden></label><div id="st" class="mut" style="margin-top:12px"></div><div class="err" id="e"></div></div>`;
+const d=$('#d'),fi=$('#fi');d.ondragover=e=>{e.preventDefault();d.classList.add('over')};d.ondragleave=()=>d.classList.remove('over');d.ondrop=e=>{e.preventDefault();send(e.dataTransfer.files[0])};
+d.onkeydown=e=>e.key==='Enter'&&fi.click();fi.onchange=()=>send(fi.files[0]);
+async function send(f){if(!f)return;$('#e').textContent='';$('#st').textContent='Uploading, extracting and analyzing…';const fd=new FormData();fd.append('file',f);
+ try{const r=await api('/resumes/upload',{method:'POST',body:fd});go('detail',r.id)}catch(x){$('#st').textContent='';$('#e').innerHTML=esc(x.message)+' <button class="s" onclick="upload()">Try again</button>'}}}
+const bar=(l,v)=>`<div style="margin:8px 0"><div class="row" style="border:0;padding:0"><span>${l}</span><b>${v}</b></div><div class="bar"><i style="width:${v}%"></i></div></div>`;
+async function detail(id){const r=await api('/resumes/'+id),a=r.analysis,p=r.parsed;
+app.innerHTML=`<h1>${esc(r.filename)}</h1><div class="grid"><div class="card"><div class="stat">${a.overall_score}</div><div class="mut">Overall score</div></div><div class="card"><div class="stat">${a.ats_score}</div><div class="mut">ATS compatibility</div></div></div>
+<div class="card"><h2>Score breakdown</h2>${Object.entries(a.scores).map(([k,v])=>bar(k[0].toUpperCase()+k.slice(1),v)).join('')}<p class="mut">${esc(a.note)} Scores follow fixed rules (shown below), not a guarantee of results.</p></div>
+<div class="card"><h2>Recommendations</h2>${a.recommendations.length?'<ul>'+a.recommendations.map(x=>`<li>${esc(x)}</li>`).join('')+'</ul>':'<p>No rule-based issues found.</p>'}</div>
+<div class="card"><h2>ATS checks</h2>${a.ats_checks.map(c=>`<div class="${c.pass?'pass':'fail'}">${c.pass?'✓':'✗'} ${esc(c.label)}</div>`).join('')}</div>
+<div class="card"><h2>Detected skills</h2>${p.skills.map(s=>`<span class="chip">${esc(s)}</span>`).join('')||'None recognised'}
+<p class="mut">Contact: ${esc(p.email||'no email')} · ${esc(p.phone||'no phone')}</p></div>
+<div class="card"><h2>AI review</h2><button class="p" id="rv">Get AI review</button><pre id="ro" style="margin-top:10px"></pre></div>
+<div class="card"><h2>Improve a line</h2><textarea id="it" rows="3" placeholder="Paste a bullet or summary from your resume"></textarea><button class="p" id="ib">Improve</button>
+<div id="io" style="margin-top:10px"></div></div>`;
+$('#rv').onclick=async e=>{e.target.disabled=true;$('#ro').textContent='Thinking…';try{$('#ro').textContent=(await api(`/resumes/${id}/ai-review`,{method:'POST'})).review}catch(x){$('#ro').innerHTML=`<span class="err">${esc(x.message)}</span>`}e.target.disabled=false};
+$('#ib').onclick=async()=>{const t=$('#it').value;if(!t)return;$('#io').textContent='Thinking…';try{const o=(await api('/ai/improve',J('POST',{text:t}))).improved;
+ $('#io').innerHTML=`<pre>${esc(o)}</pre><p class="mut">Check this is accurate before using it.</p><button class="s" id="cp">Copy</button> <button class="s" onclick="$('#ib').click()">Regenerate</button> <button class="s" onclick="$('#io').innerHTML=''">Reject</button>`;
+ $('#cp').onclick=()=>navigator.clipboard.writeText(o)}catch(x){$('#io').innerHTML=`<span class="err">${esc(x.message)}</span>`}}}
+async function jobs(){const [rs,js]=await Promise.all([api('/resumes'),api('/jobs')]);
+app.innerHTML=`<h1>Job match</h1><div class="card"><h2>Add a job</h2><input id="jt" placeholder="Job title"><textarea id="jd" rows="6" placeholder="Paste the job description"></textarea><div class="err" id="e"></div><button class="p" id="ja">Save job</button></div>
+<div class="card"><h2>Match</h2>${rs.length&&js.length?`<select id="rs" style="padding:8px">${rs.map(r=>`<option value="${r.id}">${esc(r.filename)}</option>`).join('')}</select> <select id="js" style="padding:8px">${js.map(j=>`<option value="${j.id}">${esc(j.title)}</option>`).join('')}</select> <button class="p" id="jm">Compare</button><div id="mo"></div>`:'<p>Upload a resume and save a job to compare them.</p>'}</div>`;
+$('#ja').onclick=async()=>{try{await api('/jobs',J('POST',{title:$('#jt').value,description:$('#jd').value}));jobs()}catch(x){$('#e').textContent=x.message}};
+if($('#jm'))$('#jm').onclick=async()=>{const m=await api(`/jobs/${$('#js').value}/match?resume_id=${$('#rs').value}`,{method:'POST'});const ch=(a,c)=>a.map(s=>`<span class="chip ${c}">${esc(s)}</span>`).join('')||'<span class="mut">none</span>';
+ $('#mo').innerHTML=`<div class="stat">${m.score}%</div><div class="mut">Confidence: ${esc(m.confidence)}</div><h2>Matching skills</h2>${ch(m.matching_skills,'g')}<h2>Potential gaps</h2>${ch(m.missing_skills,'r')}<h2>Keywords to consider</h2>${ch(m.missing_keywords,'r')}<p class="mut">${esc(m.note)}</p>`}}
+function chat(){app.innerHTML=`<h1>Career assistant</h1><div class="card"><div id="log"><p class="mut">Ask about skills to learn, your summary, or how to improve a bullet.</p></div><form id="cf" style="display:flex;gap:8px;margin-top:10px"><input id="cm" placeholder="Ask a question" style="margin:0"><button class="p">Send</button></form></div>`;
+api('/ai/history').then(h=>{if(h.length)$('#log').innerHTML=h.map(x=>`<div class="msg ${x.role=='user'?'u':'a'}"><pre>${esc(x.content)}</pre></div>`).join('')});
+$('#cf').onsubmit=async e=>{e.preventDefault();const m=$('#cm').value;if(!m)return;$('#cm').value='';const L=$('#log');L.insertAdjacentHTML('beforeend',`<div class="msg u">${esc(m)}</div>`);
+ try{const rs=await api('/resumes');const r=await api('/ai/chat',J('POST',{message:m,resume_id:rs[0]?.id??null}));L.insertAdjacentHTML('beforeend',`<div class="msg a"><pre>${esc(r.reply)}</pre></div>`)}catch(x){L.insertAdjacentHTML('beforeend',`<div class="err">${esc(x.message)}</div>`)}}}
+(async()=>{try{ME=await api('/auth/me');go('dashboard')}catch{go('auth')}})();
+</script></body></html>

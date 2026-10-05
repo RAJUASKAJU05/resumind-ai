@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-multipart
+pymupdf
+python-docx
+httpx
+pytest
+email-validator
+pytesseract
+pillow
