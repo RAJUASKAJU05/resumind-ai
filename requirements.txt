@@ -8,3 +8,4 @@ pytest
 email-validator
 pytesseract
 pillow
+psycopg[binary]
