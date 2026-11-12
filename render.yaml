@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: resumind-ai
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: RESET_CODE
+        generateValue: true
+      - key: AI_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DEMO_EMAIL
+        sync: false
+      - key: DEMO_PASSWORD
+        sync: false
